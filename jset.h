@@ -1,8 +1,6 @@
 #ifndef JSET_H
 #define JSET_H
-// clang-format off
-
-// PUBLIC
+// clang-format off PUBLIC
 
 /*  jset serves as a set implementation. It is not a hashset, nor does it use hashes in any way.
 
@@ -42,6 +40,12 @@
 
     V set_pop(T*)
         Remove and return some element in the set, undefined if empty
+
+    T* set_union(const T*, const T*)
+        Creates a set containing the union of two sets
+
+    T* set_intersect(const T*, const T*)
+        Creates a set containing the intersection of two sets
 */
 
 #define set_new(s, cmp)     jset_new(s, cmp)
@@ -56,6 +60,8 @@
 #define set_add(p, e)       jset_add(p, e)
 #define set_remove(p, e)    jset_remove(p, e)
 #define set_pop(p)          jset_pop(p)
+#define set_union(a, b)     jset_union(a, b)
+#define set_intersect(a, b) jset_intersect(a, b)
 
 // PRIVATE
 
@@ -63,6 +69,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <memory.h>
+#include <assert.h>
 
 typedef bool (*jset_cmp_func)(const void*, const void*);
 
@@ -77,7 +84,7 @@ struct jset {
 #define jset_add(p, e) (p = jset_grow(p), jset_insert(p, e))
 #define jset_pop(p) (jset_restore(p)->size--, p[set_size(p)])
 
-static inline struct jset *jset_restore(void *p) {
+static inline struct jset *jset_restore(const void *p) {
     return (struct jset*)((char*)p - offsetof(struct jset, buffer));
 }
 
@@ -103,31 +110,31 @@ static inline void jset_free(void *p) {
     free(jset_restore(p));
 }
 
-static inline size_t jset_size(void *p) {
+static inline size_t jset_size(const void *p) {
     return jset_restore(p)->size;
 }
 
-static inline size_t jset_capacity(void *p) {
+static inline size_t jset_capacity(const void *p) {
     return jset_restore(p)->capacity;
 }
 
-static inline size_t jset_element_size(void *p) {
+static inline size_t jset_element_size(const void *p) {
     return jset_restore(p)->element_size;
 }
 
-static inline jset_cmp_func jset_cmp(void *p) {
+static inline jset_cmp_func jset_cmp(const void *p) {
     return jset_restore(p)->cmp;
 }
 
-static inline bool jset_empty(void *p) {
+static inline bool jset_empty(const void *p) {
     return !jset_size(p);
 }
 
-static inline void* jset_get(void *p, size_t index) {
+static inline void* jset_get(const void *p, size_t index) {
     return &(((char*)&jset_restore(p)->buffer)[jset_restore(p)->element_size * index]);
 }
 
-static inline size_t jset_find(void *p, const void *e) {
+static inline size_t jset_find(const void *p, const void *e) {
     struct jset* set = jset_restore(p);
     for (size_t i = 0; i < set->size; i++)
         if (set->cmp(jset_get(p, i), e))
@@ -135,7 +142,7 @@ static inline size_t jset_find(void *p, const void *e) {
     return set->size;
 }
 
-static inline bool jset_contains(void *p, const void *e) {
+static inline bool jset_contains(const void *p, const void *e) {
     return jset_find(p, e) != jset_size(p);
 }
 
@@ -180,5 +187,30 @@ static inline void jset_remove(void *p, const void *e) {
         return;
     jset_swap(p, index, jset_restore(p)->size - 1);
     jset_restore(p)->size--;
+}
+
+static inline void* jset_union(const void *a, const void *b) {
+    assert(set_element_size(a) == set_element_size(b));
+    assert(set_cmp(a) == set_cmp(b));
+    const size_t cap = set_capacity(a) + set_capacity(b);
+    void *set = jset_alloc(set_element_size(a), cap, set_cmp(a));
+    for (size_t i = 0; i < set_size(a); i++)
+        set_add(set, jset_get(a, i));
+    for (size_t i = 0; i < set_size(b); i++)
+        set_add(set, jset_get(b, i));
+    return set;
+}
+
+static inline void* jset_intersect(const void *a, const void *b) {
+    assert(set_element_size(a) == set_element_size(b));
+    assert(set_cmp(a) == set_cmp(b));
+    void *set = jset_alloc(set_element_size(a), set_capacity(a), set_cmp(a));
+    for (size_t i = 0; i < set_size(a); i++)
+        if (set_contains(b, jset_get(a, i)))
+            set_add(set, jset_get(a, i));
+    for (size_t i = 0; i < set_size(b); i++)
+        if (set_contains(a, jset_get(b, i)))
+            set_add(set, jset_get(b, i));
+    return set;
 }
 #endif
