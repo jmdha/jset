@@ -39,6 +39,9 @@
 
     void set_remove(T*, const V*)
         Removes V from set
+
+    V set_pop(T*)
+        Remove and return some element in the set, undefined if empty
 */
 
 #define set_new(s, cmp)     jset_new(s, cmp)
@@ -52,6 +55,7 @@
 #define set_clear(p)        jset_clear(p)
 #define set_add(p, e)       jset_add(p, e)
 #define set_remove(p, e)    jset_remove(p, e)
+#define set_pop(p)          jset_pop(p)
 
 // PRIVATE
 
@@ -71,6 +75,7 @@ struct jset {
 };
 
 #define jset_add(p, e) (p = jset_grow(p), jset_insert(p, e))
+#define jset_pop(p) (jset_restore(p)->size--, p[set_size(p)])
 
 static inline struct jset *jset_restore(void *p) {
     return (struct jset*)((char*)p - offsetof(struct jset, buffer));
@@ -176,5 +181,4 @@ static inline void jset_remove(void *p, const void *e) {
     jset_swap(p, index, jset_restore(p)->size - 1);
     jset_restore(p)->size--;
 }
-
 #endif

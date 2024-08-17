@@ -13,6 +13,11 @@ int main() {
         set_add(set, &i);
         assert(set_contains(set, &i));
     }
+    for (size_t i = 9999; i > 0; i--) {
+        assert(!set_empty(set));
+        int val = set_pop(set);
+        assert(val == i);
+    }
     set_free(set);
     return 0;
 }
